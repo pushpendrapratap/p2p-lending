@@ -2,89 +2,101 @@
 
 pragma solidity ^0.8.0;
 
+import "hardhat/console.sol";
+
+// import "./Ownable.sol";
+
 contract ChitFund {
-    address owner;
-    uint256 previousBalance;
+    address payable public owner;
 
-    event addedFunds(address whoAdded, uint256 howMuch);
+    uint8 totalMembers = 3;
+    uint8 currMemberCount = 0;
+    uint256 chitFundDuration = 3;
+    uint256 individualDepositAmount = 0.01 ether;
+    uint256 surplus = 0.003 ether;
+    uint256 collateralAmount = individualDepositAmount + surplus;
 
-    function ChitFund() {
-        owner = msg.sender;
-        members[owner] = member(true, true, 0, 0);
-        previousBalance = this.balance;
-    }
-
-    struct member {
+    struct person {
         bool isMember;
-        bool isPermitted;
         uint256 loanGranted;
-        int256 amountAddedToThePool;
+        uint256 lastDepositedTime;
     }
 
-    mapping(address => member) members;
-    mapping(address => uint256) loanGranted;
-
-    modifier onlyowner() {
-        require(msg.sender == owner);
-        _;
+    struct stats {
+        uint16 currPeriod;
+        uint256 totalDeposits;
+        uint256 lendingAmount;
     }
 
-    modifier onlymember() {
+    stats trxnStats;
+
+    mapping(address => person) public members;
+
+    constructor() payable {
+        owner = payable(msg.sender);
+    }
+
+    modifier canDeposit() {
         require(members[msg.sender].isMember == true);
+        require(currMemberCount <= totalMembers);
         _;
     }
 
-    function addMembers(address _memberaddress) public {
-        members[_memberaddress] = member(true, true, 0, 0);
+    modifier canWithDraw() {
+        require(members[msg.sender].isMember == true);
+        require(owner != payable(address(0)));
+        require(currMemberCount == totalMembers);
+        // require(trxnStats.currPeriod <= chitFundDuration);
+        require(
+            trxnStats.totalDeposits >= totalMembers * individualDepositAmount
+        );
+        _;
     }
 
-    function removeMembers(address _memberaddress) public {
-        delete members[_memberaddress];
-    }
-
-    function addFundsorPayLoan() payable onlymember {
-        // uint256 changeInBalance = this.balance - previousBalance;
-        members[msg.sender].amountAddedToThePool += int256(msg.value);
+    function deposit() public payable canDeposit {
         if (
-            members[msg.sender].loanGranted > 0 &&
-            members[msg.sender].loanGranted > msg.value
+            currMemberCount == totalMembers &&
+            (!(members[msg.sender].isMember == true))
         ) {
-            members[msg.sender].loanGranted -= msg.value;
-        } else if (members[msg.sender].loanGranted <= msg.value) {
-            members[msg.sender].isPermitted = true;
-            members[msg.sender].loanGranted = 0;
-        }
-        addedFunds(msg.sender, msg.value);
-        // previousBalance = this.balance;
-    }
-
-    function requestLoan(uint256 loanAmount) onlymember returns (bool status) {
-        if (
-            members[msg.sender].isPermitted &&
-            int256(loanAmount) <=
-            2 * members[msg.sender].amountAddedToThePool &&
-            loanAmount <= this.balance / 2
-        ) {
-            members[msg.sender].isPermitted = false;
-            members[msg.sender].loanGranted = loanAmount;
-            members[msg.sender].amountAddedToThePool -= int256(loanAmount);
-            msg.sender.transfer(loanAmount);
-            // previousBalance = this.balance;
-            return true;
+            console.log("No place for more people!!!");
         } else {
-            revert();
+            if (!(members[msg.sender].isMember == true)) {
+                members[msg.sender] = person(true, 0, block.timestamp);
+                console.log(
+                    "before deposit currMemberCount: %s",
+                    currMemberCount
+                );
+                currMemberCount++;
+                console.log(
+                    "after deposit currMemberCount: %s",
+                    currMemberCount
+                );
+            }
+            console.log(
+                "before deposit trxnStats.totalDeposits: %s",
+                trxnStats.totalDeposits
+            );
+            trxnStats.totalDeposits += msg.value;
+            uint256 balance = address(this).balance;
+            console.log("before balance: %s", balance);
+            (bool success, ) = owner.call{value: msg.value}("");
+            balance = address(this).balance;
+            console.log("after balance: %s", balance);
+            require(success, "Failed to deposit Ether to owner");
+            console.log(
+                "after deposit trxnStats.totalDeposits: %s",
+                trxnStats.totalDeposits
+            );
         }
     }
 
-    function getLoanGranted() constant returns (uint256) {
-        return members[msg.sender].loanGranted;
-    }
-
-    function getBalance() constant returns (uint256) {
-        return this.balance;
-    }
-
-    function getAmoundAdded() constant returns (int256) {
-        return members[msg.sender].amountAddedToThePool;
+    function withdraw() public canWithDraw {
+        uint256 amount = address(this).balance;
+        console.log("before amount: %s", amount);
+        console.log("collateralAmount: %s", collateralAmount);
+        (bool success, ) = msg.sender.call{value: collateralAmount}("");
+        require(success, "Failed to withdraw Ether from owner");
+        amount = address(this).balance;
+        console.log("after amount: %s", amount);
     }
 }

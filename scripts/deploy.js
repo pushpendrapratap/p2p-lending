@@ -3,14 +3,13 @@ const hre = require("hardhat");
 async function main() {
     const [deployer] = await hre.ethers.getSigners();
 
-    const SampleContract = await hre.ethers.getContractFactory("SampleContract");
-    const sampleContract = await SampleContract.deploy();
+    const ChitFundContract = await hre.ethers.getContractFactory("ChitFund");
+    const chitFundContract = await ChitFundContract.deploy();
 
-    await sampleContract.deployed();
-    console.log("Sample Contract address:", sampleContract.address);
+    await chitFundContract.deployed();
+    console.log("chitFund Contract address:", chitFundContract.address);
 
-    saveFrontendFiles(sampleContract);
-
+    // saveFrontendFiles(chitFundContract);
 }
 
 function saveFrontendFiles(contract) {
@@ -23,20 +22,21 @@ function saveFrontendFiles(contract) {
 
     fs.writeFileSync(
         contractsDir + "/contract-address.json",
-        JSON.stringify({ SampleContract: contract.address }, undefined, 2)
+        JSON.stringify({ ChitFundContract: contract.address }, undefined, 2)
     );
 
-    const SampleContractArtifact = artifacts.readArtifactSync("SampleContract");
+    const ChitFundContractArtifact =
+        hre.artifacts.readArtifactSync("ChitFundContract");
 
     fs.writeFileSync(
-        contractsDir + "/SampleContract.json",
-        JSON.stringify(SampleContractArtifact, null, 2)
+        contractsDir + "/ChitFundContract.json",
+        JSON.stringify(ChitFundContractArtifact, null, 2)
     );
 }
 
 main()
     .then(() => process.exit(0))
-    .catch(error => {
+    .catch((error) => {
         console.log(error);
         process.exit(1);
     });

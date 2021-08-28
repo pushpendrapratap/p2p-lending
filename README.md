@@ -1,2 +1,7 @@
-# p2p-lending
-A decentralized, smart contract based chit fund platform on the Ethereum Blockchain
+##  compile & run:
+    ```
+    $   npx hardhat compile
+    $   npx hardhat node
+    $   npx hardhat run scripts/deploy.js --network localhost
+    ```
+
