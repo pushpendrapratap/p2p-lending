@@ -1,6 +1,8 @@
 # Custom
 __MACOSX
 venv*
+.vscode
+src/abis
 
 # Logs
 logs
