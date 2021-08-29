@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
@@ -28,14 +28,14 @@ contract ChitFund {
         uint256 lendingAmount;
     }
 
-    stats public trxnStats;
-    
+    stats trxnStats;
+
     mapping(address => person) public members;
 
     constructor() payable {
-        owner = payable(address(this));
+        owner = payable(msg.sender);
     }
-    
+
     modifier canDeposit() {
         require(members[msg.sender].isMember == true);
         require(currMemberCount <= totalMembers);
@@ -52,34 +52,51 @@ contract ChitFund {
         );
         _;
     }
-    
-    function deposit() public canDeposit payable {
+
+    function deposit() public payable canDeposit {
         if (
             currMemberCount == totalMembers &&
-            (members[msg.sender].isMember == false)
+            (!(members[msg.sender].isMember == true))
         ) {
             console.log("No place for more people!!!");
         } else {
-            if (members[msg.sender].isMember == false) {
+            if (!(members[msg.sender].isMember == true)) {
                 members[msg.sender] = person(true, 0, block.timestamp);
+                console.log(
+                    "before deposit currMemberCount: %s",
+                    currMemberCount
+                );
                 currMemberCount++;
+                console.log(
+                    "after deposit currMemberCount: %s",
+                    currMemberCount
+                );
             }
+            console.log(
+                "before deposit trxnStats.totalDeposits: %s",
+                trxnStats.totalDeposits
+            );
             trxnStats.totalDeposits += msg.value;
+            uint256 balance = address(this).balance;
+            console.log("before balance: %s", balance);
+            (bool success, ) = owner.call{value: msg.value}("");
+            balance = address(this).balance;
+            console.log("after balance: %s", balance);
+            require(success, "Failed to deposit Ether to owner");
+            console.log(
+                "after deposit trxnStats.totalDeposits: %s",
+                trxnStats.totalDeposits
+            );
         }
-    }
-    
-    function getAddress() public view returns (address) {
-        return msg.sender;
-    }
-    
-    function getBalance() public view returns (uint) {
-        return address(this).balance;
     }
 
     function withdraw() public canWithDraw {
-        (bool success, ) = payable(msg.sender).call{value: collateralAmount}("");
-        require(success, "Failed to withdraw Ether from contract");
-        trxnStats.totalDeposits -= collateralAmount;
+        uint256 amount = address(this).balance;
+        console.log("before amount: %s", amount);
+        console.log("collateralAmount: %s", collateralAmount);
+        (bool success, ) = msg.sender.call{value: collateralAmount}("");
+        require(success, "Failed to withdraw Ether from owner");
+        amount = address(this).balance;
+        console.log("after amount: %s", amount);
     }
 }
-
